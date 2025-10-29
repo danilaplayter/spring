@@ -1,0 +1,138 @@
+databaseChangeLog:
+  - changeSet:
+      id: 1
+      author: taskmanager
+      changes:
+        - createTable:
+            tableName: tasks
+            columns:
+              - column:
+                  name: id
+                  type: UUID
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: title
+                  type: VARCHAR(200)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: description
+                  type: VARCHAR(2000)
+              - column:
+                  name: status
+                  type: VARCHAR(20)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: priority
+                  type: VARCHAR(20)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: assignee
+                  type: VARCHAR(255)
+              - column:
+                  name: due_date
+                  type: TIMESTAMP
+              - column:
+                  name: created_at
+                  type: TIMESTAMP
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: TIMESTAMP
+
+  - changeSet:
+      id: 2
+      author: taskmanager
+      changes:
+        - createTable:
+            tableName: task_tags
+            columns:
+              - column:
+                  name: task_id
+                  type: UUID
+                  constraints:
+                    nullable: false
+              - column:
+                  name: tag
+                  type: VARCHAR(100)
+                  constraints:
+                    nullable: false
+        - addForeignKeyConstraint:
+            baseTableName: task_tags
+            baseColumnNames: task_id
+            referencedTableName: tasks
+            referencedColumnNames: id
+            constraintName: fk_task_tags_task_id
+            onDelete: CASCADE
+
+  - changeSet:
+      id: 3
+      author: taskmanager
+      changes:
+        - createTable:
+            tableName: comments
+            columns:
+              - column:
+                  name: id
+                  type: UUID
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: task_id
+                  type: UUID
+                  constraints:
+                    nullable: false
+              - column:
+                  name: text
+                  type: VARCHAR(2000)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: author
+                  type: VARCHAR(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: TIMESTAMP
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: TIMESTAMP
+        - addForeignKeyConstraint:
+            baseTableName: comments
+            baseColumnNames: task_id
+            referencedTableName: tasks
+            referencedColumnNames: id
+            constraintName: fk_comments_task_id
+            onDelete: CASCADE
+
+  - changeSet:
+      id: 4
+      author: taskmanager
+      changes:
+        - createIndex:
+            tableName: tasks
+            indexName: idx_tasks_status
+            columns:
+              - column:
+                  name: status
+        - createIndex:
+            tableName: tasks
+            indexName: idx_tasks_assignee
+            columns:
+              - column:
+                  name: assignee
+        - createIndex:
+            tableName: tasks
+            indexName: idx_tasks_priority
+            columns:
+              - column:
+                  name: priority
