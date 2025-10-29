@@ -1,0 +1,660 @@
+openapi: 3.0.3
+info:
+  title: Task Management API
+  version: 1.0.0
+  description: |
+    RESTful API для управления задачами с поддержкой HATEOAS (Level 3 maturity).
+    
+    ## Особенности API:
+    - Полная поддержка REST conventions
+    - HATEOAS links для навигации
+    - Фильтрация, сортировка и пагинация
+    - Версионирование API
+    - Единый формат обработки ошибок
+    - Валидация входных данных
+    
+  contact:
+    name: Task Management API Support
+    email: support@taskmanagement.com
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://localhost:8080/api/v1
+    description: Local development server
+  - url: https://api.taskmanagement.com/v1
+    description: Production server
+
+paths:
+  /tasks:
+    get:
+      summary: Получить список задач
+      operationId: getTasks
+      tags:
+        - Tasks
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [TODO, IN_PROGRESS, DONE]
+        - name: assignee
+          in: query
+          schema:
+            type: string
+        - name: priority
+          in: query
+          schema:
+            type: string
+            enum: [LOW, MEDIUM, HIGH, CRITICAL]
+        - name: sort
+          in: query
+          schema:
+            type: string
+            pattern: '^[a-zA-Z]+:(asc|desc)(,[a-zA-Z]+:(asc|desc))*$'
+            example: "priority:desc,createdAt:asc"
+        - name: page
+          in: query
+          description: Номер страницы (начиная с 0)
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+        - name: size
+          in: query
+          description: Количество элементов на странице
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        '200':
+          description: Список задач успешно получен
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskListResponse'
+        '400':
+          description: Некорректные параметры запроса
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Внутренняя ошибка сервера
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    post:
+      summary: Создать новую задачу
+      operationId: createTask
+      tags:
+        - Tasks
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTaskRequest'
+      responses:
+        '201':
+          description: Задача успешно создана
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+          headers:
+            Location:
+              schema:
+                type: string
+              description: URL созданной задачи
+        '400':
+          description: Некорректные данные запроса
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Ошибка валидации данных
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+        '500':
+          description: Внутренняя ошибка сервера
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /tasks/{taskId}:
+    get:
+      summary: Получить задачу по ID
+      operationId: getTaskById
+      tags:
+        - Tasks
+      parameters:
+        - name: taskId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Информация о задаче
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+        '404':
+          description: Задача не найдена
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    put:
+      summary: Обновить задачу
+      operationId: updateTask
+      tags:
+        - Tasks
+      parameters:
+        - name: taskId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateTaskRequest'
+      responses:
+        '200':
+          description: Задача обновлена
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+        '404':
+          description: Задача не найдена
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    patch:
+      summary: Частично обновить задачу
+      operationId: patchTask
+      tags:
+        - Tasks
+      parameters:
+        - name: taskId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json-patch+json:
+            schema:
+              type: array
+              items:
+                $ref: '#/components/schemas/JsonPatchOperation'
+      responses:
+        '200':
+          description: Задача обновлена
+        '404':
+          description: Задача не найдена
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    delete:
+      summary: Удалить задачу
+      operationId: deleteTask
+      tags:
+        - Tasks
+      parameters:
+        - name: taskId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Задача удалена
+        '404':
+          description: Задача не найдена
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /tasks/{taskId}/comments:
+    get:
+      summary: Получить комментарии к задаче
+      operationId: getTaskComments
+      tags:
+        - Comments
+      parameters:
+        - name: taskId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: page
+          in: query
+          description: Номер страницы (начиная с 0)
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+        - name: size
+          in: query
+          description: Количество элементов на странице
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        '200':
+          description: Список комментариев
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CommentListResponse'
+        '404':
+          description: Задача не найдена
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    post:
+      summary: Создать комментарий к задаче
+      operationId: createTaskComment
+      tags:
+        - Comments
+      parameters:
+        - name: taskId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCommentRequest'
+      responses:
+        '201':
+          description: Комментарий успешно создан
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Comment'
+        '400':
+          description: Некорректные данные запроса
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Задача не найдена
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Ошибка валидации данных
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+        '500':
+          description: Внутренняя ошибка сервера
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  schemas:
+    Task:
+      type: object
+      required:
+        - id
+        - title
+        - status
+        - priority
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        title:
+          type: string
+          example: "Важная задача"
+        description:
+          type: string
+          example: "Описание важной задачи"
+        status:
+          type: string
+          enum: [TODO, IN_PROGRESS, DONE]
+          example: "TODO"
+        priority:
+          type: string
+          enum: [LOW, MEDIUM, HIGH, CRITICAL]
+          example: "HIGH"
+        assignee:
+          type: string
+          example: "user123"
+        dueDate:
+          type: string
+          format: date-time
+          example: "2024-01-15T18:00:00Z"
+        tags:
+          type: array
+          items:
+            type: string
+          example: ["urgent", "backend"]
+        createdAt:
+          type: string
+          format: date-time
+          example: "2024-01-01T12:00:00Z"
+        updatedAt:
+          type: string
+          format: date-time
+          example: "2024-01-01T12:00:00Z"
+        _links:
+          $ref: '#/components/schemas/HalLinks'
+
+    CreateTaskRequest:
+      type: object
+      required:
+        - title
+        - priority
+      properties:
+        title:
+          type: string
+          minLength: 3
+          maxLength: 200
+          example: "Новая задача"
+        description:
+          type: string
+          maxLength: 2000
+          example: "Описание новой задачи"
+        priority:
+          type: string
+          enum: [LOW, MEDIUM, HIGH, CRITICAL]
+          example: "MEDIUM"
+        assignee:
+          type: string
+          example: "user123"
+        dueDate:
+          type: string
+          format: date-time
+          example: "2024-01-15T18:00:00Z"
+        tags:
+          type: array
+          items:
+            type: string
+          example: ["feature", "api"]
+
+    UpdateTaskRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 3
+          maxLength: 200
+          example: "Обновленный заголовок"
+        description:
+          type: string
+          maxLength: 2000
+          example: "Обновленное описание"
+        status:
+          type: string
+          enum: [TODO, IN_PROGRESS, DONE]
+          example: "IN_PROGRESS"
+        priority:
+          type: string
+          enum: [LOW, MEDIUM, HIGH, CRITICAL]
+          example: "HIGH"
+        assignee:
+          type: string
+          example: "user456"
+        dueDate:
+          type: string
+          format: date-time
+          example: "2024-01-20T18:00:00Z"
+        tags:
+          type: array
+          items:
+            type: string
+          example: ["updated", "critical"]
+
+    JsonPatchOperation:
+      type: object
+      required:
+        - op
+        - path
+      properties:
+        op:
+          type: string
+          enum: [add, remove, replace, move, copy, test]
+          example: "replace"
+        path:
+          type: string
+          example: "/status"
+        value:
+          type: string
+          example: "DONE"
+        from:
+          type: string
+          example: "/oldPath"
+
+    TaskListResponse:
+      type: object
+      required:
+        - content
+        - page
+        - size
+        - totalElements
+        - totalPages
+      properties:
+        content:
+          type: array
+          items:
+            $ref: '#/components/schemas/Task'
+        page:
+          type: integer
+          minimum: 0
+          example: 0
+        size:
+          type: integer
+          minimum: 1
+          maximum: 100
+          example: 20
+        totalElements:
+          type: integer
+          minimum: 0
+          example: 150
+        totalPages:
+          type: integer
+          minimum: 0
+          example: 8
+
+    Comment:
+      type: object
+      required:
+        - id
+        - text
+        - author
+        - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        text:
+          type: string
+          maxLength: 2000
+        author:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    CommentListResponse:
+      type: object
+      required:
+        - content
+        - page
+        - size
+        - totalElements
+        - totalPages
+      properties:
+        content:
+          type: array
+          items:
+            $ref: '#/components/schemas/Comment'
+        page:
+          type: integer
+          minimum: 0
+        size:
+          type: integer
+          minimum: 1
+          maximum: 100
+        totalElements:
+          type: integer
+          minimum: 0
+        totalPages:
+          type: integer
+          minimum: 0
+
+    HalLinks:
+      type: object
+      properties:
+        self:
+          $ref: '#/components/schemas/Link'
+        comments:
+          $ref: '#/components/schemas/Link'
+        assignee:
+          $ref: '#/components/schemas/Link'
+
+    Link:
+      type: object
+      required:
+        - href
+        - method
+      properties:
+        href:
+          type: string
+        method:
+          type: string
+          enum: [GET, POST, PUT, PATCH, DELETE]
+
+    CreateCommentRequest:
+      type: object
+      required:
+        - text
+        - author
+      properties:
+        text:
+          type: string
+          minLength: 1
+          maxLength: 2000
+          example: "Это комментарий к задаче"
+        author:
+          type: string
+          minLength: 1
+          maxLength: 255
+          example: "user123"
+
+    ErrorResponse:
+      type: object
+      required:
+        - error
+        - message
+        - timestamp
+      properties:
+        error:
+          type: string
+          example: "NOT_FOUND"
+        message:
+          type: string
+          example: "Задача с ID 550e8400-e29b-41d4-a716-446655440000 не найдена"
+        timestamp:
+          type: string
+          format: date-time
+          example: "2024-01-01T12:00:00Z"
+        path:
+          type: string
+          example: "/api/v1/tasks/550e8400-e29b-41d4-a716-446655440000"
+        details:
+          type: string
+          example: "Дополнительная информация об ошибке"
+
+    ValidationErrorResponse:
+      type: object
+      required:
+        - error
+        - message
+        - timestamp
+        - validationErrors
+      properties:
+        error:
+          type: string
+          example: "VALIDATION_ERROR"
+        message:
+          type: string
+          example: "Ошибка валидации входных данных"
+        timestamp:
+          type: string
+          format: date-time
+          example: "2024-01-01T12:00:00Z"
+        path:
+          type: string
+          example: "/api/v1/tasks"
+        validationErrors:
+          type: array
+          items:
+            $ref: '#/components/schemas/ValidationError'
+
+    ValidationError:
+      type: object
+      required:
+        - field
+        - message
+        - rejectedValue
+      properties:
+        field:
+          type: string
+          example: "title"
+        message:
+          type: string
+          example: "Заголовок должен содержать от 3 до 200 символов"
+        rejectedValue:
+          type: string
+          example: "ab"
