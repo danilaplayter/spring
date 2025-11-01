@@ -1,0 +1,82 @@
+openapi: 3.0.3
+info:
+  title: Weather Aggregation API
+  version: 1.0.0
+  description: API для агрегации погодных данных из нескольких источников
+paths:
+  /api/v1/weather/{city}:
+    get:
+      summary: Получить агрегированный отчет о погоде
+      operationId: getWeather
+      tags:
+        - Weather
+      parameters:
+        - name: city
+          in: path
+          required: true
+          description: Название города
+          schema:
+            type: string
+            example: "Moscow"
+      responses:
+        '200':
+          description: Агрегированный отчет
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AggregatedWeatherReport'
+        '400':
+          description: Некорректный запрос
+        '500':
+          description: Внутренняя ошибка сервера
+components:
+  schemas:
+    AggregatedWeatherReport:
+      type: object
+      required:
+        - city
+        - reports
+      properties:
+        city:
+          type: string
+          description: Название города
+          example: "Moscow"
+        reports:
+          type: array
+          description: Список отчетов от разных источников
+          items:
+            $ref: '#/components/schemas/WeatherReport'
+    WeatherReport:
+      type: object
+      required:
+        - source
+        - status
+      properties:
+        source:
+          type: string
+          description: Источник данных
+          example: "WeatherGov"
+        temperature:
+          type: number
+          format: double
+          description: Температура в градусах Цельсия
+          example: 15.5
+        humidity:
+          type: number
+          format: double
+          description: Влажность в процентах
+          example: 65.0
+        windSpeed:
+          type: number
+          format: double
+          description: Скорость ветра в м/с
+          example: 5.2
+        status:
+          type: string
+          description: Статус получения данных
+          enum: [SUCCESS, TIMEOUT, ERROR]
+          example: "SUCCESS"
+        errorMessage:
+          type: string
+          description: Сообщение об ошибке (если есть)
+          example: "Connection timeout"

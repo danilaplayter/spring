@@ -1,0 +1,51 @@
+databaseChangeLog:
+  - changeSet:
+      id: 1
+      author: your_name
+      changes:
+        - createTable:
+            tableName: weather_reports
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: source
+                  type: VARCHAR(50)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: temperature
+                  type: DOUBLE
+                  constraints:
+                    nullable: true
+              - column:
+                  name: humidity
+                  type: DOUBLE
+                  constraints:
+                    nullable: true
+              - column:
+                  name: wind_speed
+                  type: DOUBLE
+                  constraints:
+                    nullable: true
+              - column:
+                  name: status
+                  type: VARCHAR(20)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: error_message
+                  type: TEXT
+                  constraints:
+                    nullable: true
+              - column:
+                  name: created_at
+                  type: TIMESTAMP
+                  defaultValueComputed: CURRENT_TIMESTAMP
+                  constraints:
+                    nullable: false
