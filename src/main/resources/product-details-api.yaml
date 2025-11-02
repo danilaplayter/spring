@@ -1,0 +1,390 @@
+openapi: 3.0.3
+info:
+  title: Product Details API
+  description: API для получения детальной информации о продукте с отзывами, остатками и рекомендациями
+  version: 1.0.0
+  contact:
+    name: API Support
+    email: support@example.com
+
+servers:
+  - url: http://localhost:8080
+    description: Development server
+  - url: https://api.example.com
+    description: Production server
+
+tags:
+  - name: Products
+    description: Операции с продуктами
+
+paths:
+  /api/v1/products/{productId}/details:
+    get:
+      tags:
+        - Products
+      summary: Получить детальную информацию о продукте
+      description: Асинхронно собирает информацию о продукте, отзывы, остатки на складах и рекомендации
+      operationId: getProductDetails
+      parameters:
+        - name: productId
+          in: path
+          description: Уникальный идентификатор продукта
+          required: true
+          schema:
+            type: string
+            example: "12345"
+      responses:
+        '200':
+          description: Детальная информация о продукте успешно получена
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductDetailsDto'
+              examples:
+                successWithoutErrors:
+                  summary: Успешный ответ без ошибок
+                  value:
+                    productInfo:
+                      id: "12345"
+                      name: "Ноутбук Gaming Pro"
+                      description: "Мощный игровой ноутбук"
+                      price: 89999.99
+                      category: "Electronics"
+                      brand: "TechBrand"
+                      imageUrl: "https://example.com/images/laptop.jpg"
+                      specifications:
+                        processor: "Intel Core i7-12700H"
+                        ram: "16GB DDR5"
+                    reviews:
+                      averageRating: 4.67
+                      totalReviews: 3
+                      reviews:
+                        - id: "r1"
+                          author: "Иван Петров"
+                          rating: 5
+                          comment: "Отличный товар!"
+                          date: "2025-10-28T10:30:00"
+                    inventory:
+                      available: true
+                      quantity: 26
+                      warehouses:
+                        - id: "wh1"
+                          name: "Склад Москва"
+                          quantity: 15
+                          city: "Москва"
+                    recommendations:
+                      similarProducts:
+                        - id: "101"
+                          name: "Игровая мышь"
+                          price: 2999.99
+                          imageUrl: "https://example.com/images/mouse.jpg"
+                          similarityScore: 0.95
+                    errors: []
+                successWithErrors:
+                  summary: Успешный ответ с ошибками зависимых сервисов
+                  value:
+                    productInfo:
+                      id: "12345"
+                      name: "Ноутбук Gaming Pro"
+                      price: 89999.99
+                      category: "Electronics"
+                    reviews:
+                      averageRating: 0.0
+                      totalReviews: 0
+                      reviews: []
+                    inventory:
+                      available: true
+                      quantity: 26
+                      warehouses: []
+                    recommendations:
+                      similarProducts: []
+                    errors:
+                      - serviceName: "ReviewService"
+                        errorCode: "TIMEOUT"
+                        message: "Service timeout after 3000ms"
+                        timestamp: "2025-11-02T10:35:00"
+        '404':
+          description: Продукт не найден
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Not Found"
+                message: "Product with id 999 not found"
+                timestamp: "2025-11-02T10:30:00"
+                details: "The requested product does not exist in the database"
+        '500':
+          description: Внутренняя ошибка сервера
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Internal Server Error"
+                message: "Failed to aggregate product details"
+                timestamp: "2025-11-02T10:30:00"
+                details: "Unexpected error occurred during processing"
+        '504':
+          description: Таймаут при получении данных
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Gateway Timeout"
+                message: "Request timeout while fetching product details"
+                timestamp: "2025-11-02T10:30:00"
+                details: "One or more services did not respond in time"
+
+components:
+  schemas:
+    ProductDetailsDto:
+      type: object
+      description: Полная информация о продукте с данными из всех сервисов
+      properties:
+        productInfo:
+          $ref: '#/components/schemas/ProductInfoDto'
+        reviews:
+          $ref: '#/components/schemas/ReviewsDto'
+        inventory:
+          $ref: '#/components/schemas/InventoryDto'
+        recommendations:
+          $ref: '#/components/schemas/RecommendationsDto'
+        errors:
+          type: array
+          description: Список ошибок при обращении к зависимым сервисам
+          items:
+            $ref: '#/components/schemas/ServiceError'
+
+    ProductInfoDto:
+      type: object
+      description: Основная информация о продукте
+      properties:
+        id:
+          type: string
+          description: Уникальный идентификатор продукта
+          example: "12345"
+        name:
+          type: string
+          description: Название продукта
+          example: "Ноутбук Gaming Pro"
+        description:
+          type: string
+          description: Подробное описание продукта
+          example: "Мощный игровой ноутбук для профессионалов"
+        price:
+          type: number
+          format: float
+          description: Цена продукта в рублях
+          example: 89999.99
+        category:
+          type: string
+          description: Категория продукта
+          example: "Electronics"
+        brand:
+          type: string
+          description: Бренд производителя
+          example: "TechBrand"
+        imageUrl:
+          type: string
+          format: uri
+          description: URL изображения продукта
+          example: "https://example.com/images/laptop.jpg"
+        specifications:
+          type: object
+          description: Технические характеристики продукта
+          additionalProperties: true
+          example:
+            processor: "Intel Core i7-12700H"
+            ram: "16GB DDR5"
+            storage: "512GB NVMe SSD"
+
+    ReviewsDto:
+      type: object
+      description: Агрегированная информация об отзывах
+      properties:
+        averageRating:
+          type: number
+          format: float
+          description: Средний рейтинг продукта (0-5)
+          minimum: 0
+          maximum: 5
+          example: 4.67
+        totalReviews:
+          type: integer
+          description: Общее количество отзывов
+          minimum: 0
+          example: 3
+        reviews:
+          type: array
+          description: Список отзывов покупателей
+          items:
+            $ref: '#/components/schemas/ReviewDto'
+
+    ReviewDto:
+      type: object
+      description: Отзыв покупателя
+      properties:
+        id:
+          type: string
+          description: Уникальный идентификатор отзыва
+          example: "r1"
+        author:
+          type: string
+          description: Имя автора отзыва
+          example: "Иван Петров"
+        rating:
+          type: integer
+          description: Оценка от 1 до 5
+          minimum: 1
+          maximum: 5
+          example: 5
+        comment:
+          type: string
+          description: Текст отзыва
+          example: "Отличный товар! Быстрая доставка."
+        date:
+          type: string
+          format: date-time
+          description: Дата и время создания отзыва
+          example: "2025-10-28T10:30:00"
+
+    InventoryDto:
+      type: object
+      description: Информация о наличии товара
+      properties:
+        available:
+          type: boolean
+          description: Доступен ли товар для покупки
+          example: true
+        quantity:
+          type: integer
+          description: Общее количество единиц товара на всех складах
+          minimum: 0
+          example: 26
+        warehouses:
+          type: array
+          description: Список складов с остатками
+          items:
+            $ref: '#/components/schemas/WarehouseDto'
+
+    WarehouseDto:
+      type: object
+      description: Информация о складе
+      properties:
+        id:
+          type: string
+          description: Уникальный идентификатор склада
+          example: "wh1"
+        name:
+          type: string
+          description: Название склада
+          example: "Склад Москва Центральный"
+        quantity:
+          type: integer
+          description: Количество единиц товара на складе
+          minimum: 0
+          example: 15
+        city:
+          type: string
+          description: Город расположения склада
+          example: "Москва"
+
+    RecommendationsDto:
+      type: object
+      description: Рекомендации похожих товаров
+      properties:
+        similarProducts:
+          type: array
+          description: Список рекомендованных товаров
+          items:
+            $ref: '#/components/schemas/RecommendedProductDto'
+
+    RecommendedProductDto:
+      type: object
+      description: Рекомендованный продукт
+      properties:
+        id:
+          type: string
+          description: Уникальный идентификатор рекомендуемого продукта
+          example: "101"
+        name:
+          type: string
+          description: Название рекомендуемого продукта
+          example: "Игровая мышь Razer DeathAdder"
+        price:
+          type: number
+          format: float
+          description: Цена рекомендуемого продукта
+          example: 2999.99
+        imageUrl:
+          type: string
+          format: uri
+          description: URL изображения рекомендуемого продукта
+          example: "https://example.com/images/mouse.jpg"
+        similarityScore:
+          type: number
+          format: float
+          description: Коэффициент схожести с исходным продуктом (0-1)
+          minimum: 0
+          maximum: 1
+          example: 0.95
+
+    ServiceError:
+      type: object
+      description: Информация об ошибке при обращении к зависимому сервису
+      required:
+        - serviceName
+        - errorCode
+        - message
+        - timestamp
+      properties:
+        serviceName:
+          type: string
+          description: Название сервиса, в котором произошла ошибка
+          example: "ReviewService"
+        errorCode:
+          type: string
+          description: Код ошибки
+          example: "TIMEOUT"
+          enum:
+            - TIMEOUT
+            - SERVICE_UNAVAILABLE
+            - INTERNAL_ERROR
+            - NOT_FOUND
+        message:
+          type: string
+          description: Детальное описание ошибки
+          example: "Service timeout after 3000ms"
+        timestamp:
+          type: string
+          format: date-time
+          description: Время возникновения ошибки
+          example: "2025-11-02T10:35:00"
+
+    ErrorResponse:
+      type: object
+      description: Стандартный формат ошибки API
+      required:
+        - error
+        - message
+        - timestamp
+      properties:
+        error:
+          type: string
+          description: Краткое название ошибки
+          example: "Not Found"
+        message:
+          type: string
+          description: Детальное сообщение об ошибке
+          example: "Product with id 999 not found"
+        timestamp:
+          type: string
+          format: date-time
+          description: Время возникновения ошибки
+          example: "2025-11-02T10:30:00"
+        details:
+          type: string
+          description: Дополнительная информация об ошибке
+          example: "The requested product does not exist in the database"

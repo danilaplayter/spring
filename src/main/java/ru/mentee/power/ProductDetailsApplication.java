@@ -3,11 +3,13 @@ package ru.mentee.power;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.scheduling.annotation.EnableAsync;
 
 @SpringBootApplication
-public class TaskManagerSystemApplication {
+@EnableAsync
+public class ProductDetailsApplication {
 
     public static void main(String[] args) {
-        SpringApplication.run(TaskManagerSystemApplication.class, args);
+        SpringApplication.run(ProductDetailsApplication.class, args);
     }
 }
