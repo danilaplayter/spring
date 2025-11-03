@@ -1,0 +1,316 @@
+openapi: 3.0.3
+info:
+  title: Library Management API
+  version: 1.0.0
+paths:
+  /api/books:
+    get:
+      summary: Получить список книг
+      parameters:
+        - name: author
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: isbn
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+        - name: size
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        '200':
+          description: Список книг
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BookListResponse'
+        '400':
+          description: Неверные параметры запроса
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    post:
+      summary: Добавить новую книгу
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateBookRequest'
+      responses:
+        '201':
+          description: Книга создана
+          headers:
+            Location:
+              schema:
+                type: string
+                format: uuid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BookResponse'
+        '400':
+          description: Неверные данные книги
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Книга с таким ISBN уже существует
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/books/{id}:
+    get:
+      summary: Получить книгу по ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Информация о книге
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BookResponse'
+        '404':
+          description: Книга не найдена
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    put:
+      summary: Обновить книгу
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateBookRequest'
+      responses:
+        '200':
+          description: Книга обновлена
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BookResponse'
+        '400':
+          description: Неверные данные книги
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Книга не найдена
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Книга с таким ISBN уже существует
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    delete:
+      summary: Удалить книгу
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Книга удалена
+        '404':
+          description: Книга не найдена
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  schemas:
+    # Response DTOs
+    BookResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          $ref: '#/components/schemas/Book'
+        message:
+          type: string
+          nullable: true
+
+    BookListResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          properties:
+            content:
+              type: array
+              items:
+                $ref: '#/components/schemas/Book'
+            totalElements:
+              type: integer
+              example: 100
+            totalPages:
+              type: integer
+              example: 5
+            size:
+              type: integer
+              example: 20
+            number:
+              type: integer
+              example: 0
+            first:
+              type: boolean
+              example: true
+            last:
+              type: boolean
+              example: false
+        message:
+          type: string
+          nullable: true
+
+    ErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+              example: "BOOK_NOT_FOUND"
+            message:
+              type: string
+              example: "Книга с указанным ID не найдена"
+            details:
+              type: array
+              items:
+                type: object
+                properties:
+                  field:
+                    type: string
+                    example: "isbn"
+                  message:
+                    type: string
+                    example: "ISBN должен быть в правильном формате"
+        timestamp:
+          type: string
+          format: date-time
+          example: "2023-10-05T14:30:00Z"
+
+    # Existing schemas
+    Book:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        title:
+          type: string
+        author:
+          type: string
+        isbn:
+          type: string
+          pattern: '^(?=(?:\D*\d){10}(?:(?:\D*\d){3})?$)[\d-]+$'
+        publishedDate:
+          type: string
+          format: date-time
+        available:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+          readOnly: true
+        updatedAt:
+          type: string
+          format: date-time
+          readOnly: true
+
+    CreateBookRequest:
+      type: object
+      required:
+        - title
+        - author
+        - isbn
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+        author:
+          type: string
+          minLength: 1
+          maxLength: 100
+        isbn:
+          type: string
+          pattern: '^(?=(?:\D*\d){10}(?:(?:\D*\d){3})?$)[\d-]+$'
+        publishedDate:
+          type: string
+          format: date-time
+        available:
+          type: boolean
+          default: true
+
+    UpdateBookRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+        author:
+          type: string
+          minLength: 1
+          maxLength: 100
+        isbn:
+          type: string
+          pattern: '^(?=(?:\D*\d){10}(?:(?:\D*\d){3})?$)[\d-]+$'
+        publishedDate:
+          type: string
+          format: date-time
+        available:
+          type: boolean
