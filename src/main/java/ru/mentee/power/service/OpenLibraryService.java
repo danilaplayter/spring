@@ -1,6 +1,8 @@
 /* @MENTEE_POWER (C)2025 */
 package ru.mentee.power.service;
 
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
+import io.github.resilience4j.retry.annotation.Retry;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -13,31 +15,50 @@ import ru.mentee.power.domain.dto.OpenLibrarySearchResponse;
 public class OpenLibraryService {
 
     private final OpenLibraryClient openLibraryClient;
+    private static final String OPEN_LIBRARY_SERVICE = "open-library-client";
 
+    @CircuitBreaker(name = OPEN_LIBRARY_SERVICE, fallbackMethod = "findBookByISBNFallback")
+    @Retry(name = OPEN_LIBRARY_SERVICE, fallbackMethod = "findBookByISBNRetryFallback")
     public OpenLibrarySearchResponse findBookByISBN(String isbn) {
         log.info("Searching book by ISBN: {}", isbn);
 
-        try {
-            OpenLibrarySearchResponse response = openLibraryClient.searchByISBN(isbn);
-            if (response.getDocs() != null && !response.getDocs().isEmpty()) {
-                log.info("Found {} book(s) for ISBN: {}", response.getDocs().size(), isbn);
+        OpenLibrarySearchResponse response = openLibraryClient.searchByISBN(isbn);
+        if (response.getDocs() != null && !response.getDocs().isEmpty()) {
+            log.info("Found {} book(s) for ISBN: {}", response.getDocs().size(), isbn);
 
-                OpenLibrarySearchResponse.BookDoc firstBook = response.getDocs().get(0);
-                log.debug(
-                        "First book: title='{}', authors={}, year={}",
-                        firstBook.getTitle(),
-                        firstBook.getAuthorName(),
-                        firstBook.getFirstPublishYear());
-            } else {
-                log.info("No books found for ISBN: {}", isbn);
-            }
-
-            return response;
-
-        } catch (Exception e) {
-            log.error("Error searching book by ISBN {}: {}", isbn, e.getMessage(), e);
-            throw new RuntimeException("Failed to search book by ISBN: " + isbn, e);
+            OpenLibrarySearchResponse.BookDoc firstBook = response.getDocs().get(0);
+            log.debug(
+                    "First book: title='{}', authors={}, year={}",
+                    firstBook.getTitle(),
+                    firstBook.getAuthorName(),
+                    firstBook.getFirstPublishYear());
+        } else {
+            log.info("No books found for ISBN: {}", isbn);
         }
+
+        return response;
+    }
+
+    public OpenLibrarySearchResponse findBookByISBNFallback(String isbn, Exception e) {
+        log.error("Circuit Breaker fallback for ISBN: {}, error: {}", isbn, e.getMessage());
+
+        OpenLibrarySearchResponse fallbackResponse = new OpenLibrarySearchResponse();
+        fallbackResponse.setDocs(java.util.Collections.emptyList());
+        fallbackResponse.setNumFound(0);
+        fallbackResponse.setStart(0);
+
+        return fallbackResponse;
+    }
+
+    public OpenLibrarySearchResponse findBookByISBNRetryFallback(String isbn, Exception e) {
+        log.error("All retry attempts failed for ISBN: {}, error: {}", isbn, e.getMessage());
+
+        OpenLibrarySearchResponse fallbackResponse = new OpenLibrarySearchResponse();
+        fallbackResponse.setDocs(java.util.Collections.emptyList());
+        fallbackResponse.setNumFound(0);
+        fallbackResponse.setStart(0);
+
+        return fallbackResponse;
     }
 
     public String getCoverUrl(Long coverId, String size) {

@@ -2,7 +2,6 @@
 package ru.mentee.power.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
@@ -84,21 +83,6 @@ class OpenLibraryServiceTest {
         assertThat(result).isNotNull();
         assertThat(result.getNumFound()).isEqualTo(0);
         assertThat(result.getDocs()).isEmpty();
-
-        verify(openLibraryClient, times(1)).searchByISBN(isbn);
-    }
-
-    @Test
-    void shouldThrowException_whenClientFails() {
-        // Given
-        String isbn = "1234567890";
-        when(openLibraryClient.searchByISBN(eq(isbn)))
-                .thenThrow(new RuntimeException("API connection failed"));
-
-        // When & Then
-        assertThatThrownBy(() -> openLibraryService.findBookByISBN(isbn))
-                .isInstanceOf(RuntimeException.class)
-                .hasMessageContaining("Failed to search book by ISBN");
 
         verify(openLibraryClient, times(1)).searchByISBN(isbn);
     }

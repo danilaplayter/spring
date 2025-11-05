@@ -41,6 +41,7 @@ logging:
     org:
       springframework:
         web: INFO
+    io.github.resilience4j: DEBUG
 
 openlibrary:
   api:
@@ -50,10 +51,54 @@ feign:
   client:
     config:
       default:
-        connectTimeout: 10000
-        readTimeout: 60000
+        connectTimeout: 5000
+        readTimeout: 10000
         loggerLevel: full
       open-library-client:
-        connectTimeout: 15000
-        readTimeout: 30000
+        connectTimeout: 5000
+        readTimeout: 10000
         loggerLevel: full
+
+resilience4j:
+  circuitbreaker:
+    instances:
+      open-library-client:
+        registerHealthIndicator: true
+        slidingWindowType: COUNT_BASED
+        slidingWindowSize: 10
+        minimumNumberOfCalls: 5
+        failureRateThreshold: 50
+        waitDurationInOpenState: 30s
+        permittedNumberOfCallsInHalfOpenState: 3
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+        recordExceptions:
+          - feign.FeignException
+          - java.io.IOException
+          - java.util.concurrent.TimeoutException
+          - org.springframework.web.client.ResourceAccessException
+  retry:
+    instances:
+      open-library-client:
+        maxAttempts: 3
+        waitDuration: 2s
+        enableExponentialBackoff: true
+        exponentialBackoffMultiplier: 2
+        retryExceptions:
+          - java.io.IOException
+          - java.util.concurrent.TimeoutException
+          - feign.RetryableException
+        ignoreExceptions:
+          - ru.mentee.power.exception.BookNotFoundException
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,circuitbreakers,retries
+  endpoint:
+    health:
+      show-details: always
+    circuitbreakers:
+      enabled: true
+    retries:
+      enabled: true

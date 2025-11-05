@@ -59,6 +59,7 @@ dependencies {
 
     // === SPRING CLOUD ===
     implementation 'org.springframework.cloud:spring-cloud-starter-openfeign'
+    implementation 'org.springframework.cloud:spring-cloud-starter-circuitbreaker-resilience4j'
 
     // === DATABASE ===
     implementation "org.liquibase:liquibase-core"

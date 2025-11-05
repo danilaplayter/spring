@@ -9,7 +9,7 @@ import ru.mentee.power.domain.dto.OpenLibrarySearchResponse;
 @FeignClient(
         name = "pen-api-library-client",
         url = "${openlibrary.api.url}",
-        configuration = ru.mentee.power.config.FeignConfig.class)
+        fallback = OpenLibraryFallback.class)
 public interface OpenLibraryClient {
 
     @GetMapping("/search.json")
