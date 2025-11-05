@@ -4,6 +4,7 @@ plugins {
     id 'io.spring.dependency-management' version '1.1.4'
     id 'jacoco'
     id 'checkstyle'
+    id 'org.openapi.generator' version '6.6.0'
     id 'com.diffplug.spotless' version '6.25.0'
 }
 
@@ -11,7 +12,9 @@ group = 'ru.mentee.power'
 version = '2.0.0-SNAPSHOT'
 
 java {
-    sourceCompatibility = '21'
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
 }
 
 repositories {
@@ -37,85 +40,130 @@ ext {
             jaxbApi          : '4.0.0',
             jaxbRuntime      : '4.0.2',
             caffeine         : '3.1.8',
-            openapiGenerator : '6.6.0'
+            springCloud      : '2023.0.1'
     ]
 }
 
+dependencyManagement {
+    imports {
+        mavenBom "org.springframework.cloud:spring-cloud-dependencies:${versions.springCloud}"
+    }
+}
+
 dependencies {
+    // === SPRING BOOT ===
     implementation 'org.springframework.boot:spring-boot-starter-web'
     implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
     implementation 'org.springframework.boot:spring-boot-starter-validation'
     implementation 'org.springframework.boot:spring-boot-starter-cache'
-    testImplementation 'org.springframework.boot:spring-boot-starter-test'
 
-    // H2 для тестов и разработки
+    // === SPRING CLOUD ===
+    implementation 'org.springframework.cloud:spring-cloud-starter-openfeign'
+
+    // === DATABASE ===
+    implementation "org.liquibase:liquibase-core"
     runtimeOnly "com.h2database:h2:${versions.h2}"
     testImplementation "com.h2database:h2:${versions.h2}"
+    implementation "org.postgresql:postgresql:${versions.postgresql}"
 
+    // === VALIDATION ===
     implementation 'jakarta.validation:jakarta.validation-api:3.0.2'
     implementation 'org.hibernate.validator:hibernate-validator:8.0.1.Final'
 
-    // Caffeine - высокопроизводительный in-memory cache
+    // === CACHING ===
     implementation "com.github.ben-manes.caffeine:caffeine:${versions.caffeine}"
 
+    // === MAPSTRUCT + LOMBOK ===
     implementation "org.mapstruct:mapstruct:${versions.mapstruct}"
     annotationProcessor "org.mapstruct:mapstruct-processor:${versions.mapstruct}"
-    testAnnotationProcessor "org.mapstruct:mapstruct-processor:${versions.mapstruct}"
-
-    annotationProcessor "org.projectlombok:lombok-mapstruct-binding:${versions.mapstructLombok}"
 
     compileOnly "org.projectlombok:lombok:${versions.lombok}"
     annotationProcessor "org.projectlombok:lombok:${versions.lombok}"
-    testCompileOnly "org.projectlombok:lombok:${versions.lombok}"
-    testAnnotationProcessor "org.projectlombok:lombok:${versions.lombok}"
+    annotationProcessor "org.projectlombok:lombok-mapstruct-binding:${versions.mapstructLombok}"
 
+    // === LOGGING ===
     implementation "org.slf4j:slf4j-api:${versions.slf4j}"
     implementation "ch.qos.logback:logback-classic:${versions.logback}"
     implementation "ch.qos.logback:logback-core:${versions.logback}"
 
+    // === JACKSON ===
     implementation "com.fasterxml.jackson.core:jackson-databind:${versions.jackson}"
     implementation "com.fasterxml.jackson.core:jackson-core:${versions.jackson}"
     implementation "com.fasterxml.jackson.core:jackson-annotations:${versions.jackson}"
     implementation "com.fasterxml.jackson.datatype:jackson-datatype-jsr310:${versions.jackson}"
+    implementation 'com.jayway.jsonpath:json-path:2.9.0'
 
+    // === XML Binding ===
     implementation "jakarta.xml.bind:jakarta.xml.bind-api:${versions.jaxbApi}"
     implementation "org.glassfish.jaxb:jaxb-runtime:${versions.jaxbRuntime}"
 
+    // === OpenAPI ===
     implementation "org.springdoc:springdoc-openapi-starter-webmvc-ui:${versions.springdoc}"
+    implementation "org.openapitools:jackson-databind-nullable:0.2.6"
+    implementation "io.swagger.core.v3:swagger-annotations:2.2.19"
+    implementation "jakarta.annotation:jakarta.annotation-api:2.1.1"
 
+    // === TESTING ===
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'org.springframework.security:spring-security-test'
     testImplementation platform("org.junit:junit-bom:${versions.junit}")
     testImplementation 'org.junit.jupiter:junit-jupiter'
     testImplementation "org.mockito:mockito-core:${versions.mockito}"
     testImplementation "org.mockito:mockito-junit-jupiter:${versions.mockito}"
     testImplementation "org.assertj:assertj-core:${versions.assertj}"
-
     testImplementation "org.testcontainers:testcontainers:${versions.testcontainers}"
     testImplementation "org.testcontainers:junit-jupiter:${versions.testcontainers}"
     testImplementation "org.testcontainers:postgresql:${versions.testcontainers}"
-
     testImplementation 'io.rest-assured:rest-assured:5.3.2'
     testImplementation 'io.rest-assured:json-path:5.3.2'
-    testImplementation 'io.rest-assured:xml-path:5.3.2'
+    testImplementation "io.rest-assured:xml-path:5.3.2"
 
-    implementation "org.openapitools:jackson-databind-nullable:0.2.6"
-    implementation "io.swagger.core.v3:swagger-annotations:2.2.19"
-
+    testCompileOnly "org.projectlombok:lombok:${versions.lombok}"
+    testAnnotationProcessor "org.projectlombok:lombok:${versions.lombok}"
 }
 
+// === SOURCE SETS ===
+sourceSets {
+    main {
+        java {
+            srcDir "$buildDir/generated/src/main/java"
+        }
+    }
+}
+
+// === OPENAPI GENERATION ===
+openApiGenerate {
+    generatorName = "spring"
+    inputSpec = "$rootDir/src/main/resources/library-management-api.yaml"
+    outputDir = "$buildDir/generated"
+    apiPackage = "ru.mentee.power.api.generated.controller"
+    modelPackage = "ru.mentee.power.api.generated.dto"
+    configOptions = [
+            dateLibrary          : "java8",
+            interfaceOnly        : "true",
+            useTags              : "true",
+            performBeanValidation: "true",
+            useBeanValidation    : "true",
+            useSpringBoot3       : "true"
+    ]
+}
+
+// === CHECKSTYLE ===
 checkstyle {
     toolVersion = '10.12.5'
     configFile = file("${rootDir}/config/checkstyle/google_checks.xml")
     maxErrors = 0
-    maxWarnings = -1
-    ignoreFailures = true
+    ignoreFailures = false
 }
 
+// === TESTS + COVERAGE ===
 test {
     useJUnitPlatform()
     finalizedBy jacocoTestReport
     testLogging {
         events "passed", "skipped", "failed"
+        showExceptions = true
+        exceptionFormat = 'full'
     }
 }
 
@@ -132,14 +180,11 @@ jacocoTestReport {
     }
 }
 
-tasks.named('check') {
-    dependsOn jacocoTestReport
-}
-
+// === SPOTLESS ===
 spotless {
     java {
-        target 'src/**/*.java'
-        googleJavaFormat("${versions.googleJavaFormat}").aosp().reflowLongStrings().skipJavadocFormatting()
+        target 'src/**/*.java', 'build/generated/src/main/java/**/*.java'
+        googleJavaFormat("${versions.googleJavaFormat}").aosp()
         removeUnusedImports()
         trimTrailingWhitespace()
         endWithNewline()
@@ -157,6 +202,62 @@ spotless {
         indentWithSpaces(4)
         endWithNewline()
     }
+
+    enforceCheck = true
 }
 
-compileJava.dependsOn spotlessApply
+// === TASK DEPENDENCIES ===
+tasks.named('openApiGenerate') {
+    outputs.dir("$buildDir/generated")
+}
+
+tasks.named('compileJava') {
+    dependsOn 'openApiGenerate', 'spotlessApply'
+}
+
+tasks.named('compileTestJava') {
+    dependsOn 'spotlessApply'
+}
+
+tasks.named('build') {
+    dependsOn 'spotlessCheck'
+}
+
+tasks.named('check') {
+    dependsOn jacocoTestReport, 'spotlessCheck'
+}
+
+tasks.named('clean') {
+    doLast {
+        delete "$buildDir/generated"
+    }
+}
+
+tasks.named('spotlessJava') {
+    dependsOn tasks.named('openApiGenerate')
+}
+tasks.named('spotlessCheck') {
+    dependsOn tasks.named('openApiGenerate')
+}
+
+// === EXTRA FORMAT TASKS ===
+tasks.register('format') {
+    group = 'formatting'
+    description = 'Formats all source code including generated'
+    dependsOn 'spotlessApply'
+}
+
+tasks.register('checkFormat') {
+    group = 'formatting'
+    description = 'Checks code formatting including generated'
+    dependsOn 'spotlessCheck'
+}
+
+tasks.register('formatGenerated') {
+    group = 'formatting'
+    description = 'Formats only generated code'
+    dependsOn 'openApiGenerate'
+    doLast {
+        spotlessApply.execute()
+    }
+}
