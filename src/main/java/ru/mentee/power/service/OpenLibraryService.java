@@ -1,0 +1,74 @@
+/* @MENTEE_POWER (C)2025 */
+package ru.mentee.power.service;
+
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
+import ru.mentee.power.client.OpenLibraryClient;
+import ru.mentee.power.domain.dto.OpenLibrarySearchResponse;
+
+@Service
+@Slf4j
+@RequiredArgsConstructor
+public class OpenLibraryService {
+
+    private final OpenLibraryClient openLibraryClient;
+
+    public OpenLibrarySearchResponse findBookByISBN(String isbn) {
+        log.info("Searching book by ISBN: {}", isbn);
+
+        try {
+            OpenLibrarySearchResponse response = openLibraryClient.searchByISBN(isbn);
+            if (response.getDocs() != null && !response.getDocs().isEmpty()) {
+                log.info("Found {} book(s) for ISBN: {}", response.getDocs().size(), isbn);
+
+                OpenLibrarySearchResponse.BookDoc firstBook = response.getDocs().get(0);
+                log.debug(
+                        "First book: title='{}', authors={}, year={}",
+                        firstBook.getTitle(),
+                        firstBook.getAuthorName(),
+                        firstBook.getFirstPublishYear());
+            } else {
+                log.info("No books found for ISBN: {}", isbn);
+            }
+
+            return response;
+
+        } catch (Exception e) {
+            log.error("Error searching book by ISBN {}: {}", isbn, e.getMessage(), e);
+            throw new RuntimeException("Failed to search book by ISBN: " + isbn, e);
+        }
+    }
+
+    public String getCoverUrl(Long coverId, String size) {
+        if (coverId == null) {
+            return null;
+        }
+        String sizeParam = (size != null && !size.isEmpty()) ? size.toUpperCase() : "M";
+        return String.format("https://covers.openlibrary.org/b/id/%d-%s.jpg", coverId, sizeParam);
+    }
+
+    public String getCoverUrlByISBN(String isbn, String size) {
+        if (isbn == null || isbn.isEmpty()) {
+            return null;
+        }
+        String sizeParam = (size != null && !size.isEmpty()) ? size.toUpperCase() : "M";
+        return String.format("https://covers.openlibrary.org/b/isbn/%s-%s.jpg", isbn, sizeParam);
+    }
+
+    public String getBookUrl(String workKey) {
+        if (workKey == null || workKey.isEmpty()) {
+            return null;
+        }
+        String cleanKey = workKey.startsWith("/works/") ? workKey : "/works/" + workKey;
+        return "https://openlibrary.org" + cleanKey;
+    }
+
+    public String getAuthorUrl(String authorKey) {
+        if (authorKey == null || authorKey.isEmpty()) {
+            return null;
+        }
+        String cleanKey = authorKey.startsWith("/authors/") ? authorKey : "/authors/" + authorKey;
+        return "https://openlibrary.org" + cleanKey;
+    }
+}

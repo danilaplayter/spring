@@ -6,7 +6,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import ru.mentee.power.api.generated.dto.BookListResponse;
@@ -27,7 +26,6 @@ public class BookService {
     private final BookRepository repository;
     private final BookMapper mapper;
 
-    @PreAuthorize("hasAnyRole('LIBRARIAN', 'ADMIN')")
     public BookResponse createBook(CreateBookRequest request) {
         log.info("Создание книги пользователем с правами LIBRARIAN/ADMIN");
         if (repository.existsByIsbn(request.getIsbn())) {
@@ -38,7 +36,6 @@ public class BookService {
     }
 
     @Transactional(readOnly = true)
-    // Чтение книги доступно всем, поэтому не нужна аннотация
     public BookResponse getBookById(UUID id) {
         Book book =
                 repository
@@ -47,7 +44,6 @@ public class BookService {
         return mapper.toBookResponse(book);
     }
 
-    @PreAuthorize("hasAnyRole('LIBRARIAN', 'ADMIN')")
     public void deleteBookById(UUID id) {
         log.info("Удаление книги пользователем с правами LIBRARIAN/ADMIN");
         if (!repository.existsById(id)) {
@@ -57,7 +53,6 @@ public class BookService {
     }
 
     @Transactional(readOnly = true)
-    // Получение списка книг доступно всем
     public BookListResponse getBooks(String author, String isbn, Pageable pageable) {
         Page<Book> booksPage;
 
@@ -86,7 +81,6 @@ public class BookService {
         return response;
     }
 
-    @PreAuthorize("hasAnyRole('LIBRARIAN', 'ADMIN')")
     public BookResponse updateBook(UUID id, UpdateBookRequest request) {
         log.info("Обновление книги пользователем с правами LIBRARIAN/ADMIN");
         Book book =

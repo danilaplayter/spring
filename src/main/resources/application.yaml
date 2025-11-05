@@ -1,0 +1,59 @@
+spring:
+  application:
+    name: task-management-api
+  datasource:
+    url: jdbc:h2:mem:taskdb
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+  jpa:
+    hibernate:
+      ddl-auto: none
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.H2Dialect
+  liquibase:
+    change-log: classpath:db/changelog/db.changelog-master.yaml
+    enabled: true
+
+server:
+  port: 8080
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    enabled: true
+
+logging:
+  level:
+    ru:
+      mentee:
+        power:
+          client: DEBUG
+    org:
+      springframework:
+        web: INFO
+
+openlibrary:
+  api:
+    url: https://openlibrary.org
+
+feign:
+  client:
+    config:
+      default:
+        connectTimeout: 10000
+        readTimeout: 60000
+        loggerLevel: full
+      open-library-client:
+        connectTimeout: 15000
+        readTimeout: 30000
+        loggerLevel: full
